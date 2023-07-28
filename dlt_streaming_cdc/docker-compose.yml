@@ -1,0 +1,51 @@
+version: '2'
+services:
+  zookeeper:
+    image: debezium/zookeeper:1.1
+    container_name: zookeeper
+    netorks:
+      - kafka_network
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 22181:2181
+  
+  kafka:
+    image: debezium/kafka:1.1
+    container_name: kafka
+    networks:
+      - kafka_network
+    depends_on:
+      - zookeeper
+    ports:
+      - 29092:29092
+      - 29093:29093
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: EXTERNAL_SAME_HOST://:29092,EXTERNAL_DIFFERENT_HOST://:9093,INTERNAL://:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://:kafka:9092,EXTERNAL_SAME_HOST://:localhost:29092,EXTERNAL_DIFFERENT_HOST:169.254.232.137:29093
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSET_TOPIC_REPLICATION_FACTOR: 1
+
+  connect:
+    container_name: connect
+    hostname: connect
+    ports:
+      - 8083:8083
+    environment:
+      - GROUP_ID = 1
+      - CONFIG_STORAGE_TOPIC=dlt-streaming-configs
+      - OFFSET_STORAGE_TOPIC=dlt-streaming-offsets
+      - BOOTSTRAP_SERVERS=kafka:9092
+    links:
+      - zookeeper:zookeeper
+      - kafka:kafka
+    depends_on:
+      - zookeeper
+      - kafka
+
+netorks:
+  kafka_network:
+    name:kafka_docker_network
